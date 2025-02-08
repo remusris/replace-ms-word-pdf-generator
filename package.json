@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@uidotdev/usehooks": "^2.4.1",
+    "file-saver": "^2.0.5",
+    "html-to-docx": "^1.8.0",
     "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.10.2",
     "jspdf": "^2.5.2",
@@ -21,6 +23,8 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@types/file-saver": "^2.0.7",
+    "@types/html-to-docx": "^1.8.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

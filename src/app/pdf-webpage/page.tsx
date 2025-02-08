@@ -5,8 +5,13 @@ import React from "react";
 // import { jsPDF } from "jspdf";
 // import html2canvas from "html2canvas";
 
+import HTMLtoDOCX from "html-to-docx";
+import { saveAs } from "file-saver";
+
+
+
 // Define interfaces for our component's types
-interface PageElement extends HTMLElement {
+interface PageElement extends HTMLElement { 
   cloneNode(deep?: boolean): PageElement;
   outerHTML: string;
 }
@@ -521,6 +526,39 @@ const PrintablePage = () => {
     };
   }, [CONTENT_HEIGHT]); // Added CONTENT_HEIGHT to dependencies
 
+  const generateDocx = async () => {
+    if (!contentRef.current) return;
+
+    const htmlContent = contentRef.current.innerHTML;
+    const header = "<p>Header: My React DOCX</p>";
+    const footer = "<p>Footer: Page number {PAGE}</p>";
+
+    const documentOptions = {
+      title: "My React Document",
+      subject: "Generated from React",
+      creator: "html-to-docx",
+      keywords: ["React", "DOCX", "html-to-docx"],
+      font: "Arial",
+      fontSize: 24, // Font size in Half-Point (default: 22)
+      orientation: "portrait" as const,
+      margins: {
+        top: 1440,
+        right: 1800,
+        bottom: 1440,
+        left: 1800,
+      },
+      pageNumber: true, // Enable page numbers
+      footer: true,
+    };
+
+    const docxBuffer = await HTMLtoDOCX(htmlContent, header, documentOptions, footer);
+    const blob = new Blob([docxBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+
+    saveAs(blob, "ReactDocument.docx");
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-8 flex justify-center">
       <style>{`
@@ -594,6 +632,8 @@ const PrintablePage = () => {
           </React.Fragment>
         ))}
       </div>
+
+      <button onClick={generateDocx}>Generate DOCX</button>
 
       {/* Debug info */}
       <div className="debug-info fixed bottom-4 right-4 bg-white p-4 rounded shadow">
