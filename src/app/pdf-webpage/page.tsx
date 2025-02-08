@@ -2,8 +2,11 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import React from "react";
-// import { jsPDF } from "jspdf";
-// import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
+
+import ReactDOMServer from 'react-dom/server';
+
 
 import { Download } from "lucide-react";
 
@@ -14,6 +17,8 @@ interface DocxConverterButtonProps {
 const DocxConverterButton = ({ contentRef }: DocxConverterButtonProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+
 
   const handleConvertToDocx = async () => {
     if (!contentRef.current) {
@@ -601,6 +606,165 @@ const PrintablePage = () => {
     };
   }, [CONTENT_HEIGHT]); // Added CONTENT_HEIGHT to dependencies
 
+  /* const createPdf = async () => {
+    const doc = new jsPDF();
+
+    doc.text("Hello world!", 10, 10);
+    doc.save("a4.pdf");
+  } */
+
+    // const createPdf = async () => {
+    //   const doc = new jsPDF({
+    //     orientation: "portrait",
+    //     unit: "mm",
+    //     format: "a4"
+    //   });
+  
+    //   // Render PrintablePageContent to HTML string
+    //   const contentHtml = ReactDOMServer.renderToString(<PrintablePageContent />);
+      
+    //   // Create a temporary container to hold the rendered HTML
+    //   const tempContainer = document.createElement('div');
+    //   tempContainer.innerHTML = contentHtml;
+      
+    //   // Extract text content while preserving some structure
+    //   const extractText = (element) => {
+    //     let text = '';
+    //     Array.from(element.childNodes).forEach(node => {
+    //       if (node.nodeType === Node.TEXT_NODE) {
+    //         text += node.textContent + ' ';
+    //       } else if (node.nodeType === Node.ELEMENT_NODE) {
+    //         // Add line breaks for block elements
+    //         const style = window.getComputedStyle(node);
+    //         if (style.display === 'block') {
+    //           text += '\\n';
+    //         }
+    //         text += extractText(node);
+    //         if (style.display === 'block') {
+    //           text += '\\n';
+    //         }
+    //       }
+    //     });
+    //     return text;
+    //   };
+  
+    //   const textContent = extractText(tempContainer);
+  
+    //   // Configure PDF document
+    //   doc.setFont("helvetica");
+    //   doc.setFontSize(12);
+  
+    //   // Split text into lines that fit the page width
+    //   const splitText = doc.splitTextToSize(textContent, 180); // 180mm width accounting for margins
+      
+    //   let yPos = 20; // Starting y position
+    //   const lineHeight = 7; // Line height in mm
+  
+    //   // Add text line by line
+    //   splitText.forEach(line => {
+    //     if (yPos > 280) { // Check if we need a new page (A4 height is 297mm)
+    //       doc.addPage();
+    //       yPos = 20;
+    //     }
+    //     doc.text(line.trim(), 15, yPos);
+    //     yPos += lineHeight;
+    //   });
+  
+    //   doc.save("generated-document.pdf");
+    // };
+
+
+    const createPdf = async (): Promise<void> => {
+      try {
+        const doc = new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: "a4"
+        });
+    
+        // Define margins (1 inch = 25.4mm)
+        const margin = {
+          top: 25.4,
+          right: 25.4,
+          bottom: 25.4,
+          left: 25.4
+        };
+    
+        // Create a visible container with proper styling
+        const contentContainer = document.createElement('div');
+        // A4 width (210mm) minus 2-inch margins
+        contentContainer.style.width = `${210 - (2 * 25.4)}mm`;
+        contentContainer.style.padding = `${margin.top}mm ${margin.right}mm ${margin.bottom}mm ${margin.left}mm`;
+        contentContainer.style.margin = '0 auto';
+        contentContainer.style.background = 'white';
+        contentContainer.style.position = 'fixed';
+        contentContainer.style.top = '0';
+        contentContainer.style.left = '0';
+        contentContainer.style.zIndex = '9999';
+        contentContainer.style.overflow = 'hidden';
+        
+        // Render the content
+        const contentHtml = ReactDOMServer.renderToString(<PrintablePageContent />);
+        contentContainer.innerHTML = contentHtml;
+        
+        document.body.appendChild(contentContainer);
+    
+        try {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+    
+          const canvas = await html2canvas(contentContainer, {
+            scale: 6,
+            useCORS: true,
+            logging: true,
+            width: contentContainer.offsetWidth,
+            height: contentContainer.offsetHeight,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            imageTimeout: 30000,
+            onclone: (clonedDoc) => {
+              const clonedContent = clonedDoc.querySelector('div');
+              if (clonedContent) {
+                clonedContent.style.display = 'block';
+              }
+            }
+          });
+    
+          const imgData = canvas.toDataURL('image/jpeg', 1.0);
+    
+          // Calculate dimensions with 1-inch margins
+          const imgProps = doc.getImageProperties(imgData);
+          const pdfWidth = doc.internal.pageSize.getWidth() - (2 * 25.4); // Subtract 2 inches
+          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    
+          // Add image to PDF with 1-inch margins
+          doc.addImage(imgData, 'JPEG', margin.left, margin.top, pdfWidth, pdfHeight);
+    
+          // Handle multiple pages with consistent 1-inch margins
+          let heightLeft = pdfHeight;
+          let position = margin.top;
+    
+          while (heightLeft >= pdfHeight) {
+            position = -pdfHeight + margin.top;
+            doc.addPage();
+            doc.addImage(imgData, 'JPEG', margin.left, position, pdfWidth, pdfHeight);
+            heightLeft -= pdfHeight;
+          }
+    
+          doc.save('generated-document.pdf');
+    
+        } finally {
+          document.body.removeChild(contentContainer);
+        }
+    
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          console.error('Error generating PDF:', error.message);
+        } else {
+          console.error('Unknown error generating PDF:', error);
+        }
+        throw error;
+      }
+    };
 
 
   return (
@@ -680,6 +844,7 @@ const PrintablePage = () => {
       {/* <button onClick={generateDocx}>Generate DOCX</button> */}
 
       <DocxConverterButton contentRef={contentRef} />
+      <button onClick={createPdf}>Create PDF</button>
 
       {/* Debug info */}
       <div className="debug-info fixed bottom-4 right-4 bg-white p-4 rounded shadow">
