@@ -5,10 +5,85 @@ import React from "react";
 // import { jsPDF } from "jspdf";
 // import html2canvas from "html2canvas";
 
-import HTMLtoDOCX from "html-to-docx";
-import { saveAs } from "file-saver";
+import { Download } from "lucide-react";
 
+interface DocxConverterButtonProps {
+  contentRef: React.RefObject<HTMLDivElement | null>;
+}
 
+const DocxConverterButton = ({ contentRef }: DocxConverterButtonProps) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleConvertToDocx = async () => {
+    if (!contentRef.current) {
+      setError('Content reference is not available');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await fetch('/api/convert-html-to-docx', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          html: contentRef.current.innerHTML,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to convert document');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ReactDocument.docx';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed bottom-4 left-4 flex flex-col items-start gap-2">
+      <button
+        onClick={handleConvertToDocx}
+        disabled={isLoading}
+        className={`inline-flex items-center px-4 py-2 rounded-md text-white 
+          ${isLoading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'} 
+          transition-colors duration-200 ease-in-out`}
+      >
+        {isLoading ? (
+          <div className="flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
+            Converting...
+          </div>
+        ) : (
+          <>
+            <Download className="w-4 h-4 mr-2" />
+            Convert to DOCX
+          </>
+        )}
+      </button>
+      {error && (
+        <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Define interfaces for our component's types
 interface PageElement extends HTMLElement { 
@@ -526,38 +601,7 @@ const PrintablePage = () => {
     };
   }, [CONTENT_HEIGHT]); // Added CONTENT_HEIGHT to dependencies
 
-  const generateDocx = async () => {
-    if (!contentRef.current) return;
 
-    const htmlContent = contentRef.current.innerHTML;
-    const header = "<p>Header: My React DOCX</p>";
-    const footer = "<p>Footer: Page number {PAGE}</p>";
-
-    const documentOptions = {
-      title: "My React Document",
-      subject: "Generated from React",
-      creator: "html-to-docx",
-      keywords: ["React", "DOCX", "html-to-docx"],
-      font: "Arial",
-      fontSize: 24, // Font size in Half-Point (default: 22)
-      orientation: "portrait" as const,
-      margins: {
-        top: 1440,
-        right: 1800,
-        bottom: 1440,
-        left: 1800,
-      },
-      pageNumber: true, // Enable page numbers
-      footer: true,
-    };
-
-    const docxBuffer = await HTMLtoDOCX(htmlContent, header, documentOptions, footer);
-    const blob = new Blob([docxBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    });
-
-    saveAs(blob, "ReactDocument.docx");
-  };
 
   return (
     <div className="min-h-screen bg-gray-100 p-8 flex justify-center">
@@ -633,7 +677,9 @@ const PrintablePage = () => {
         ))}
       </div>
 
-      <button onClick={generateDocx}>Generate DOCX</button>
+      {/* <button onClick={generateDocx}>Generate DOCX</button> */}
+
+      <DocxConverterButton contentRef={contentRef} />
 
       {/* Debug info */}
       <div className="debug-info fixed bottom-4 right-4 bg-white p-4 rounded shadow">
